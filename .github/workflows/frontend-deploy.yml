@@ -87,11 +87,7 @@ jobs:
       # ✅ optional: different bucket per env (recommended)
       - name: "Set S3 bucket by environment"
         run: |
-          if [ "${{ github.event.inputs.environment }}" = "production" ]; then
-            echo "S3_BUCKET=unboundshare-frontend-prod" >> $GITHUB_ENV
-          else
-            echo "S3_BUCKET=unboundshare-frontend-qa" >> $GITHUB_ENV
-          fi
+          aws s3 sync dist/ s3://${{ secrets.S3_BUCKET }} --delete
 
       - name: "Deploy to S3"
         run: |
