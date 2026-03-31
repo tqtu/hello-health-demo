@@ -20,7 +20,6 @@ permissions:
 
 env:
   AWS_REGION: "ap-southeast-1"
-  S3_BUCKET: "unboundshare-frontend-storage-31-03-2026-1"
 
 jobs:
   # =========================
@@ -53,14 +52,16 @@ jobs:
           retention-days: 1
 
   # =========================
-  # STAGE 2: DEPLOY (MANUAL APPROVAL)
+  # STAGE 2: DEPLOY
   # =========================
   deploy:
     name: "2. Deploy to S3"
     needs: build
-    if: ${{ github.event_name == 'workflow_dispatch' && github.event.inputs.environment == 'frontend' }}
+    if: ${{ github.event_name == 'workflow_dispatch' }}
     runs-on: ubuntu-latest
-    environment: qa
+
+    # ✅ dynamic environment (this enables correct approval per env)
+    environment: ${{ github.event.inputs.environment }}
 
     env:
       AWS_ACCESS_KEY_ID: ${{ secrets.AWS_ACCESS_KEY_ID_UNBOUNDSHARE }}
@@ -83,6 +84,15 @@ jobs:
           aws-secret-access-key: ${{ secrets.AWS_SECRET_ACCESS_KEY_UNBOUNDSHARE }}
           aws-region: ${{ env.AWS_REGION }}
 
+      # ✅ optional: different bucket per env (recommended)
+      - name: "Set S3 bucket by environment"
+        run: |
+          if [ "${{ github.event.inputs.environment }}" = "production" ]; then
+            echo "S3_BUCKET=unboundshare-frontend-prod" >> $GITHUB_ENV
+          else
+            echo "S3_BUCKET=unboundshare-frontend-qa" >> $GITHUB_ENV
+          fi
+
       - name: "Deploy to S3"
         run: |
-          aws s3 sync dist/ s3://${{ env.S3_BUCKET }} --delete
+          aws s3 sync dist/ s3://$S3_BUCKET --delete
