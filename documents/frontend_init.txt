@@ -1,0 +1,36 @@
+FRONTEND DEPLOYMENT GUIDE (S3 + VITE)
+
+1.  Build frontend cd your-frontend-repo npm install npm run build
+
+2.  Create S3 bucket aws s3api create-bucket –bucket
+    unboundshare-frontend-storage-31-03-2026-1 –region ap-southeast-1
+    –create-bucket-configuration LocationConstraint=ap-southeast-1
+
+3.  Enable static website hosting aws s3 website
+    s3://unboundshare-frontend-storage-31-03-2026-1/ –index-document
+    index.html –error-document index.html
+
+4.  Upload build to S3 aws s3 sync dist/
+    s3://unboundshare-frontend-storage-31-03-2026-1
+
+5.  (Optional - Quick test) Make bucket public aws s3api
+    put-public-access-block –bucket
+    unboundshare-frontend-storage-31-03-2026-1
+    –public-access-block-configuration
+    BlockPublicAcls=false,IgnorePublicAcls=false,BlockPublicPolicy=false,RestrictPublicBuckets=false
+
+aws s3api put-bucket-policy –bucket
+unboundshare-frontend-storage-31-03-2026-1 –policy ‘{
+“Version”:“2012-10-17”, “Statement”:[ { “Effect”:“Allow”,
+“Principal”:“*“,”Action”:[“s3:GetObject”],
+“Resource”:[“arn:aws:s3:::unboundshare-frontend-storage-31-03-2026-1/*”]
+} ] }’
+
+6.  Access website
+    http://unboundshare-frontend-storage-31-03-2026-1.s3-website-ap-southeast-1.amazonaws.com
+
+7.  Production recommendation
+
+-   Use CloudFront in front of S3
+-   Keep S3 private
+-   Add HTTPS + Route53 domain

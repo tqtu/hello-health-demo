@@ -1,0 +1,88 @@
+name: "Frontend Deploy - S3"
+
+on:
+  pull_request:
+    branches:
+      - main
+  workflow_dispatch:
+    inputs:
+      environment:
+        description: "Select target environment"
+        required: true
+        default: "qa"
+        type: choice
+        options:
+          - qa
+          - production
+
+permissions:
+  contents: read
+
+env:
+  AWS_REGION: "ap-southeast-1"
+  S3_BUCKET: "unboundshare-frontend-storage-31-03-2026-1"
+
+jobs:
+  # =========================
+  # STAGE 1: BUILD
+  # =========================
+  build:
+    name: "1. Build Frontend"
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: "Checkout Code"
+        uses: actions/checkout@v4
+
+      - name: "Setup Node"
+        uses: actions/setup-node@v4
+        with:
+          node-version: 20
+
+      - name: "Install Dependencies"
+        run: npm install
+
+      - name: "Build Project"
+        run: npm run build
+
+      - name: "Upload Build Artifact"
+        uses: actions/upload-artifact@v4
+        with:
+          name: frontend-build
+          path: dist/
+          retention-days: 1
+
+  # =========================
+  # STAGE 2: DEPLOY (MANUAL APPROVAL)
+  # =========================
+  deploy:
+    name: "2. Deploy to S3"
+    needs: build
+    if: ${{ github.event_name == 'workflow_dispatch' && github.event.inputs.environment == 'frontend' }}
+    runs-on: ubuntu-latest
+    environment: qa
+
+    env:
+      AWS_ACCESS_KEY_ID: ${{ secrets.AWS_ACCESS_KEY_ID_UNBOUNDSHARE }}
+      AWS_SECRET_ACCESS_KEY: ${{ secrets.AWS_SECRET_ACCESS_KEY_UNBOUNDSHARE }}
+
+    steps:
+      - name: "Checkout Code"
+        uses: actions/checkout@v4
+
+      - name: "Download Build Artifact"
+        uses: actions/download-artifact@v4
+        with:
+          name: frontend-build
+          path: dist/
+
+      - name: "Configure AWS Credentials"
+        uses: aws-actions/configure-aws-credentials@v4
+        with:
+          aws-access-key-id: ${{ secrets.AWS_ACCESS_KEY_ID_UNBOUNDSHARE }}
+          aws-secret-access-key: ${{ secrets.AWS_SECRET_ACCESS_KEY_UNBOUNDSHARE }}
+          aws-region: ${{ env.AWS_REGION }}
+
+      - name: "Deploy to S3"
+        run: |
+          aws s3 sync dist/ s3://${{ env.S3_BUCKET }} --delete
