@@ -1,15 +1,18 @@
 name: "Frontend Deploy - S3"
 
 on:
-  pull_request:
+  # ✅ Auto deploy to QA when code is merged into develop
+  push:
     branches:
-      - main
+      - develop
+
+  # ✅ Manual trigger for production
   workflow_dispatch:
     inputs:
       environment:
         description: "Select target environment"
         required: true
-        default: "qa"
+        default: "production"
         type: choice
         options:
           - qa
@@ -57,11 +60,17 @@ jobs:
   deploy:
     name: "2. Deploy to S3"
     needs: build
-    if: ${{ github.event_name == 'workflow_dispatch' }}
     runs-on: ubuntu-latest
 
-    # ✅ dynamic environment (this enables correct approval per env)
-    environment: ${{ github.event.inputs.environment }}
+    # ✅ Run deploy in 2 cases:
+    # 1. Auto QA (push to develop)
+    # 2. Manual trigger (production or qa)
+    if: |
+      github.ref == 'refs/heads/develop' ||
+      github.event_name == 'workflow_dispatch'
+
+    # ✅ Dynamic environment
+    environment: ${{ github.event.inputs.environment || 'qa' }}
 
     env:
       AWS_ACCESS_KEY_ID: ${{ secrets.AWS_ACCESS_KEY_ID_UNBOUNDSHARE }}
